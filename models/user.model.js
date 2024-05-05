@@ -1,5 +1,5 @@
 import { Schema } from "mongoose";
-import bcrypt from "bcryptjs"
+import bcrypt from "bcryptjs";
 
 const userSchema = new Schema(
   {
@@ -39,17 +39,43 @@ const userSchema = new Schema(
     forgotPasswordExpiry: {
       type: String,
     },
+    verified: {
+      type: Boolean,
+      default: false,
+    },
+    otp: {
+      type: Number,
+    },
+    otpExpiryTime: {
+      type: Date,
+    },
   },
   {
     timestamps: true,
   }
 );
 
+userSchema.pre("save", async function (next) {
+  // run this middleware only when the otp actually has changed
+  if (!this.isModified("otp")) return next();
+  // hash the otp
+  this.otp = await bcrypt.hash(this.otp, 10);
+  next();
+});
+
+// checking user password
 userSchema.methods.checkCorrectPassword = async function (
   currentUserPassword,
   dbUserPassword
 ) {
-    return await bcrypt(currentUserPassword,dbUserPassword)
+  return await bcrypt.compare(currentUserPassword, dbUserPassword);
+};
+// checking otp
+userSchema.methods.checkCorrectOTP = async function (
+  currentUserOtp,
+  dbUserOtp
+) {
+  return await bcrypt.compare(currentUserOtp, dbUserOtp);
 };
 
 const User = model("User", userSchema);
