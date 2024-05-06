@@ -30,6 +30,9 @@ const userSchema = new Schema(
       minLength: [5, "password must be at least five character"],
       select: false,
     },
+    confirmPassword:{
+      type:String,
+    },
     passwordChangedAt: {
       type: String,
     },
@@ -55,8 +58,8 @@ const userSchema = new Schema(
   }
 );
 
+// run this middleware only when the otp actually has changed
 userSchema.pre("save", async function (next) {
-  // run this middleware only when the otp actually has changed
   if (!this.isModified("otp")) return next();
   // hash the otp
   this.otp = await bcrypt.hash(this.otp, 10);
@@ -76,6 +79,17 @@ userSchema.methods.checkCorrectOTP = async function (
   dbUserOtp
 ) {
   return await bcrypt.compare(currentUserOtp, dbUserOtp);
+};
+
+userSchema.methods.createForgotPasswordToken = async function () {
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  this.forgotPasswordToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+
+    this.forgotPasswordExpiry = Date.now() + 10*60*1000 // 10min
+    return resetToken
 };
 
 const User = model("User", userSchema);
