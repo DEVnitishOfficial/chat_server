@@ -66,6 +66,13 @@ userSchema.pre("save", async function (next) {
   next();
 });
 
+userSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
+  // hash the password
+  this.password = await bcrypt.hash(this.password, 10);
+  next();
+});
+
 // checking user password
 userSchema.methods.checkCorrectPassword = async function (
   currentUserPassword,
@@ -91,6 +98,10 @@ userSchema.methods.createForgotPasswordToken = async function () {
     this.forgotPasswordExpiry = Date.now() + 10*60*1000 // 10min
     return resetToken
 };
+
+userSchema.methods.changedPasswordAfter = async function(timestamp){
+ return timestamp < this.passwordChangedAt
+}
 
 const User = model("User", userSchema);
 

@@ -1,11 +1,14 @@
 import jwt from "jsonwebtoken";
 import otpGenerator from "otp-generator";
+import { promisify } from "util";
 
 //
 import User from "../models/user.model";
 import filterObject from "../utils/filterObject";
 
 const signToken = (userId) => jwt.sign({ userId }, process.env.JWT_SECRET);
+
+// Signup = Register → send otp → verify otp
 
 // registering the user
 export const register = async (req, res, next) => {
@@ -108,6 +111,7 @@ export const login = async (req, res, next) => {
       success: false,
       message: "please provide email and password",
     });
+    return;
   }
 
   const userFromDb = await User.findOne({ email }).select("+password");
@@ -120,6 +124,7 @@ export const login = async (req, res, next) => {
       success: false,
       message: "Email or password is incorrect",
     });
+    return;
   }
   const token = signToken(userFromDb._id);
 
@@ -130,7 +135,49 @@ export const login = async (req, res, next) => {
   });
 };
 
-export const protect = async (req, res, next) => {};
+export const protect = async (req, res, next) => {
+  let token;
+
+  // 1) Extracting token form headers
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
+    token = req.headers.authorization.split(" ")[1];
+  } else if (req.cookies.jwt) {
+    token = req.cookies.jwt;
+  } else {
+    res.status(400).json({
+      success: false,
+      message: "You are not logged In! please LoggedIn first to get Access",
+    });
+    return;
+  }
+
+  // 2) verification of token
+  const decodedJwt = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
+
+  // 3) Check if user still exist
+  const current_user = await User.findById(decodedJwt.userId);
+  if (!current_user) {
+    res.status(400).json({
+      success: false,
+      message: "User not found,jwt expired",
+    });
+  }
+
+  // check if a user is logged in and we issue the token then another user came on the same email and try to reset the password and if they successfylly reset the password then i have to remove or kicked out the first user who enterd previously before changing the password.
+
+  if(current_user.changedPasswordAfter(decodedJwt.iat)){
+    // here iat is timestamp when the token genetated, see it on https://jwt.io/
+    res.status(400).json({
+      success:false,
+      message:"User Updated password recently! please login again"
+    })
+  }
+  req.user = current_user
+  next()
+};
 
 // forgot password
 export const forgotPassword = async (req, res, next) => {
@@ -141,6 +188,7 @@ export const forgotPassword = async (req, res, next) => {
       success: false,
       message: "user not found with the provided email",
     });
+    return;
   }
 
   // 2. Generate the random reset token
@@ -161,11 +209,11 @@ export const forgotPassword = async (req, res, next) => {
       success: false,
       message: "Error in sending email, Try later",
     });
+    return;
   }
 };
 
 export const resetPassword = async (req, res, next) => {
-  
   // generate hashed token
 
   const hashedToken = await crypto
@@ -184,6 +232,7 @@ export const resetPassword = async (req, res, next) => {
       success: false,
       message: "Token is invalid or expired",
     });
+    return; // make sure to exit the flow of code
   }
 
   // 3) update user password and set forgot token and expiry to undefined
@@ -206,4 +255,5 @@ export const resetPassword = async (req, res, next) => {
     message: "password reset successfully",
     token,
   });
+  return;
 };
