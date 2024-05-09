@@ -2,9 +2,11 @@ import jwt from "jsonwebtoken";
 import otpGenerator from "otp-generator";
 import { promisify } from "util";
 
+
 //
-import User from "../models/user.model";
-import filterObject from "../utils/filterObject";
+import User from "../models/user.model.js";
+import filterObject from "../utils/filterObject.js";
+import { sendEmail } from "../services/mailer.js";
 
 const signToken = (userId) => jwt.sign({ userId }, process.env.JWT_SECRET);
 
@@ -60,7 +62,13 @@ export const sendOTP = async (req, res, next) => {
 
   await User.findByIdAndUpdate(userId, { otp: generated_otp, otpExpiryTime });
 
-  // TODO : SEND EMAIL
+
+  sendEmail({
+    from:"nitish.naroun123@gmail.com",
+    to:"hidummymail@gmail.com",
+    subject:"OTP for user verification",
+    text:`your OTP is ${generated_otp}.This otp is only valid for 10 minutes`
+  })
 
   res.status(200).json({
     success: true,

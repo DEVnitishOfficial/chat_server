@@ -6,6 +6,7 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import ExpressMongoSanitize from "express-mongo-sanitize";
 import bodyParser from "body-parser";
+import router from "./routes/index.js"
 
 const app = express()
 
@@ -40,6 +41,8 @@ app.use(express.urlencoded({
 
 app.use(ExpressMongoSanitize());
 
+
+app.use(router)
 
 
 export default app;
