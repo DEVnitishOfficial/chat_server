@@ -1,5 +1,5 @@
-import User from "../models/user.model";
-import filterObject from "../utils/filterObject";
+import User from "../models/user.model.js";
+import filterObject from "../utils/filterObject.js";
 
 export const updateMe = async (req, res, next) => {
   const { user } = req;

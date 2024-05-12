@@ -6,7 +6,7 @@ import { promisify } from "util";
 //
 import User from "../models/user.model.js";
 import filterObject from "../utils/filterObject.js";
-import { sendEmail } from "../services/mailer.js";
+import sendEmail from "../services/sendEmail.js";
 
 const signToken = (userId) => jwt.sign({ userId }, process.env.JWT_SECRET);
 
@@ -16,6 +16,8 @@ const signToken = (userId) => jwt.sign({ userId }, process.env.JWT_SECRET);
 export const register = async (req, res, next) => {
   console.log("reqBody", req.body);
   const { firstName, lastName, email, password } = req.body;
+  req.email = req.body.email
+  
 
   const filteredBody = filterObject(
     req.body,
@@ -62,13 +64,10 @@ export const sendOTP = async (req, res, next) => {
 
   await User.findByIdAndUpdate(userId, { otp: generated_otp, otpExpiryTime });
 
-
-  sendEmail({
-    from:"nitish.naroun123@gmail.com",
-    to:"hidummymail@gmail.com",
-    subject:"OTP for user verification",
-    text:`your OTP is ${generated_otp}.This otp is only valid for 10 minutes`
-  })
+  const subject = "OTP for user verification";
+  const message = `your OTP is ${generated_otp}.This otp is only valid for 10 minutes`;
+  const email = req.email
+  sendEmail(email,subject,message)
 
   res.status(200).json({
     success: true,
@@ -83,6 +82,7 @@ export const verifyUserByOtp = async (req, res, next) => {
     email,
     otpExpiryTime: { $gt: Date.now() },
   });
+  console.log('user>>>>>',user)
 
   if (!user) {
     res.status(400).json({
@@ -91,16 +91,21 @@ export const verifyUserByOtp = async (req, res, next) => {
     });
   }
 
-  if (!(await user.checkCorrectOTP(otp, user.otp))) {
+  console.log('checkOtpCorrection>>>>',otp.toString(), "dbotp",user.otp.toString())
+
+  if (!(await user.checkCorrectOTP(otp.toString().trim(), user.otp.toString().trim()))) {
     res.status(400).json({
       success: false,
       message: "wrong otp,please entre correct one",
     });
+    return
   }
 
   // if otp is correct verify the user
   user.verified = true;
   user.otp = undefined;
+
+  console.log('onlyUsr',user,'userVrf>>>>', user.verified)
 
   const token = signToken(user._id);
 
@@ -124,6 +129,7 @@ export const login = async (req, res, next) => {
 
   const userFromDb = await User.findOne({ email }).select("+password");
 
+  console.log('currPass>>',password,"dbPass",userFromDb.password)
   if (
     !userFromDb ||
     !(await userFromDb.checkCorrectPassword(password, userFromDb.password))

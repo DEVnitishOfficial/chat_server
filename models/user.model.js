@@ -1,4 +1,4 @@
-import { Schema } from "mongoose";
+import { Schema, model } from "mongoose";
 import bcrypt from "bcryptjs";
 
 const userSchema = new Schema(
@@ -78,14 +78,15 @@ userSchema.methods.checkCorrectPassword = async function (
   currentUserPassword,
   dbUserPassword
 ) {
-  return await bcrypt.compare(currentUserPassword, dbUserPassword);
+  // return await bcrypt.compare(currentUserPassword, dbUserPassword);
+  return currentUserPassword === dbUserPassword
 };
 // checking otp
 userSchema.methods.checkCorrectOTP = async function (
   currentUserOtp,
   dbUserOtp
 ) {
-  return await bcrypt.compare(currentUserOtp, dbUserOtp);
+  return currentUserOtp === dbUserOtp;
 };
 
 userSchema.methods.createForgotPasswordToken = async function () {
