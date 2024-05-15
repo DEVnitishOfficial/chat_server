@@ -1,5 +1,6 @@
 import { Schema, model } from "mongoose";
 import bcrypt from "bcryptjs";
+import crypto from 'crypto';
 
 const userSchema = new Schema(
   {
@@ -90,11 +91,9 @@ userSchema.methods.checkCorrectOTP = async function (
 };
 
 userSchema.methods.createForgotPasswordToken = async function () {
-  const resetToken = crypto.randomBytes(32).toString("hex");
-  this.forgotPasswordToken = crypto
-    .createHash("sha256")
-    .update(resetToken)
-    .digest("hex");
+  const resetToken = crypto.randomBytes(32).toString("hex")
+
+  this.forgotPasswordToken = crypto.createHash("sha256").update(resetToken).digest("hex")
 
     this.forgotPasswordExpiry = Date.now() + 10*60*1000 // 10min
     return resetToken

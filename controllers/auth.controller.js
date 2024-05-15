@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import otpGenerator from "otp-generator";
 import { promisify } from "util";
-
+import crypto from "crypto";
 
 //
 import User from "../models/user.model.js";
@@ -16,8 +16,7 @@ const signToken = (userId) => jwt.sign({ userId }, process.env.JWT_SECRET);
 export const register = async (req, res, next) => {
   console.log("reqBody", req.body);
   const { firstName, lastName, email, password } = req.body;
-  req.email = req.body.email
-  
+  req.email = req.body.email;
 
   const filteredBody = filterObject(
     req.body,
@@ -66,8 +65,8 @@ export const sendOTP = async (req, res, next) => {
 
   const subject = "OTP for user verification";
   const message = `your OTP is ${generated_otp}.This otp is only valid for 10 minutes`;
-  const email = req.email
-  sendEmail(email,subject,message)
+  const email = req.email;
+  sendEmail(email, subject, message);
 
   res.status(200).json({
     success: true,
@@ -82,7 +81,7 @@ export const verifyUserByOtp = async (req, res, next) => {
     email,
     otpExpiryTime: { $gt: Date.now() },
   });
-  console.log('user>>>>>',user)
+  console.log("user>>>>>", user);
 
   if (!user) {
     res.status(400).json({
@@ -91,21 +90,33 @@ export const verifyUserByOtp = async (req, res, next) => {
     });
   }
 
-  console.log('checkOtpCorrection>>>>',otp.toString(), "dbotp",user.otp.toString())
+  console.log(
+    "checkOtpCorrection>>>>",
+    otp.toString(),
+    "dbotp",
+    user.otp.toString()
+  );
 
-  if (!(await user.checkCorrectOTP(otp.toString().trim(), user.otp.toString().trim()))) {
+  if (
+    !(await user.checkCorrectOTP(
+      otp.toString().trim(),
+      user.otp.toString().trim()
+    ))
+  ) {
     res.status(400).json({
       success: false,
       message: "wrong otp,please entre correct one",
     });
-    return
+    return;
   }
 
   // if otp is correct verify the user
   user.verified = true;
+  await user.save();
+
   user.otp = undefined;
 
-  console.log('onlyUsr',user,'userVrf>>>>', user.verified)
+  console.log("onlyUsr", user, "userVrf>>>>", user.verified);
 
   const token = signToken(user._id);
 
@@ -129,7 +140,7 @@ export const login = async (req, res, next) => {
 
   const userFromDb = await User.findOne({ email }).select("+password");
 
-  console.log('currPass>>',password,"dbPass",userFromDb.password)
+  console.log("currPass>>", password, "dbPass", userFromDb.password);
   if (
     !userFromDb ||
     !(await userFromDb.checkCorrectPassword(password, userFromDb.password))
@@ -182,15 +193,15 @@ export const protect = async (req, res, next) => {
 
   // check if a user is logged in and we issue the token then another user came on the same email and try to reset the password and if they successfylly reset the password then i have to remove or kicked out the first user who enterd previously before changing the password.
 
-  if(current_user.changedPasswordAfter(decodedJwt.iat)){
+  if (current_user.changedPasswordAfter(decodedJwt.iat)) {
     // here iat is timestamp when the token genetated, see it on https://jwt.io/
     res.status(400).json({
-      success:false,
-      message:"User Updated password recently! please login again"
-    })
+      success: false,
+      message: "User Updated password recently! please login again",
+    });
   }
-  req.user = current_user
-  next()
+  req.user = current_user;
+  next();
 };
 
 // forgot password
@@ -207,9 +218,19 @@ export const forgotPassword = async (req, res, next) => {
 
   // 2. Generate the random reset token
   const resetToken = await user.createForgotPasswordToken();
-  const resetUrl = `https://chatapp.com/auth/reset-passwrod/?code=${resetToken}`;
+  const resetUrl = `https://localhost:6000/auth/reset-passwrod/?code=${resetToken}`;
   try {
+    console.log("resettoken", resetToken);
+
     // TODO : send email with reset url
+
+    const subject = "Reset your passwrod";
+    const message = `Click on this  ${resetUrl}. to reset your passwrod and set an new password`;
+    const email = req.body.email;
+    sendEmail(email, subject, message);
+
+    user.forgotPasswordToken = resetToken;
+    await user.save();
     res.status(200).json({
       success: true,
       message: "Sent password reset link to email",
@@ -230,12 +251,13 @@ export const forgotPassword = async (req, res, next) => {
 export const resetPassword = async (req, res, next) => {
   // generate hashed token
 
-  const hashedToken = await crypto
+  const hashedToken = crypto
     .createHash("sha256")
-    .update(req.params.token)
+    .update(req.body.token)
     .digest("hex");
+
   const user = await User.findOne({
-    forgotPasswordToken: hashedToken,
+    forgotPasswordToken: req.body.token,
     forgotPasswordExpiry: { $gt: Date.now() },
   });
 
