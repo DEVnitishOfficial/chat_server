@@ -79,8 +79,7 @@ userSchema.methods.checkCorrectPassword = async function (
   currentUserPassword,
   dbUserPassword
 ) {
-  // return await bcrypt.compare(currentUserPassword, dbUserPassword);
-  return currentUserPassword === dbUserPassword
+  return await bcrypt.compare(currentUserPassword, dbUserPassword);
 };
 // checking otp
 userSchema.methods.checkCorrectOTP = async function (

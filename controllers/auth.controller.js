@@ -7,6 +7,7 @@ import crypto from "crypto";
 import User from "../models/user.model.js";
 import filterObject from "../utils/filterObject.js";
 import sendEmail from "../services/sendEmail.js";
+import resetPasswordTemp from "../services/resetPasswordTemp.js"
 
 const signToken = (userId) => jwt.sign({ userId }, process.env.JWT_SECRET);
 
@@ -129,6 +130,7 @@ export const verifyUserByOtp = async (req, res, next) => {
 
 // login the user
 export const login = async (req, res, next) => {
+  console.log('req.body>>>>',req.body)
   const { email, password } = req.body;
   if (!email || !password) {
     res.status(400).json({
@@ -218,14 +220,14 @@ export const forgotPassword = async (req, res, next) => {
 
   // 2. Generate the random reset token
   const resetToken = await user.createForgotPasswordToken();
-  const resetUrl = `https://localhost:6000/auth/reset-passwrod/?code=${resetToken}`;
+  const resetUrl = `http://localhost:3000/auth/new-password/?token=${resetToken}`;
   try {
     console.log("resettoken", resetToken);
 
     // TODO : send email with reset url
 
     const subject = "Reset your passwrod";
-    const message = `Click on this  ${resetUrl}. to reset your passwrod and set an new password`;
+    const message = resetPasswordTemp(user.firstName,resetUrl);
     const email = req.body.email;
     sendEmail(email, subject, message);
 
