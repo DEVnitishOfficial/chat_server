@@ -59,6 +59,8 @@ export const sendOTP = async (req, res, next) => {
     specialChars: false,
   });
 
+  console.log(generated_otp)
+
   // calculate otp expiry
   const otpExpiryTime = Date.now() + 10 * 60 * 1000; // equivalent to 10 minutes
 
@@ -142,7 +144,7 @@ export const login = async (req, res, next) => {
 
   const userFromDb = await User.findOne({ email }).select("+password");
 
-  console.log("currPass>>", password, "dbPass", userFromDb.password);
+  // console.log("currPass>>", password, "dbPass", userFromDb.password);
   if (
     !userFromDb ||
     !(await userFromDb.checkCorrectPassword(password, userFromDb.password))

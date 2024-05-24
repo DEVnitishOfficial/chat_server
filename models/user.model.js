@@ -1,6 +1,7 @@
-import { Schema, model } from "mongoose";
+import mongoose, { Schema, model, mongo } from "mongoose";
 import bcrypt from "bcryptjs";
-import crypto from 'crypto';
+import crypto from "crypto";
+import { type } from "os";
 
 const userSchema = new Schema(
   {
@@ -31,8 +32,8 @@ const userSchema = new Schema(
       minLength: [5, "password must be at least five character"],
       select: false,
     },
-    confirmPassword:{
-      type:String,
+    confirmPassword: {
+      type: String,
     },
     passwordChangedAt: {
       type: String,
@@ -53,6 +54,15 @@ const userSchema = new Schema(
     otpExpiryTime: {
       type: Date,
     },
+    socket_id: {
+      type: String,
+    },
+    friends: [
+      { 
+        type: mongoose.Schema.ObjectId,
+        ref: "User"
+       }
+      ],
   },
   {
     timestamps: true,
@@ -79,6 +89,7 @@ userSchema.methods.checkCorrectPassword = async function (
   currentUserPassword,
   dbUserPassword
 ) {
+  // return currentUserPassword === dbUserPassword
   return await bcrypt.compare(currentUserPassword, dbUserPassword);
 };
 // checking otp
@@ -90,17 +101,20 @@ userSchema.methods.checkCorrectOTP = async function (
 };
 
 userSchema.methods.createForgotPasswordToken = async function () {
-  const resetToken = crypto.randomBytes(32).toString("hex")
+  const resetToken = crypto.randomBytes(32).toString("hex");
 
-  this.forgotPasswordToken = crypto.createHash("sha256").update(resetToken).digest("hex")
+  this.forgotPasswordToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
 
-    this.forgotPasswordExpiry = Date.now() + 10*60*1000 // 10min
-    return resetToken
+  this.forgotPasswordExpiry = Date.now() + 10 * 60 * 1000; // 10min
+  return resetToken;
 };
 
-userSchema.methods.changedPasswordAfter = async function(timestamp){
- return timestamp < this.passwordChangedAt
-}
+userSchema.methods.changedPasswordAfter = async function (timestamp) {
+  return timestamp < this.passwordChangedAt;
+};
 
 const User = model("User", userSchema);
 
