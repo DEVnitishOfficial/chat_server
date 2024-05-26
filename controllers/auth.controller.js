@@ -127,6 +127,7 @@ export const verifyUserByOtp = async (req, res, next) => {
     success: true,
     message: "User verified by OTP successfully",
     token,
+    user_id: user._id
   });
 };
 
@@ -161,6 +162,7 @@ export const login = async (req, res, next) => {
     success: true,
     message: "Logged In Successfully",
     token,
+    user_id: userFromDb._id
   });
 };
 
