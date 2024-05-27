@@ -58,11 +58,15 @@ const userSchema = new Schema(
       type: String,
     },
     friends: [
-      { 
+      {
         type: mongoose.Schema.ObjectId,
-        ref: "User"
-       }
-      ],
+        ref: "User",
+      },
+    ],
+    status: {
+      type: String,
+      enum: ["Online","Offline"]
+    },
   },
   {
     timestamps: true,

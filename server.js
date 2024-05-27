@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import app from "./app.js";
 import { Server } from "socket.io";
+import path from "path";
 
 // event listener
 process.on("uncaughtException", (error) => {
@@ -48,7 +49,7 @@ io.on("connection", async (socket) => {
   console.log(`User connected with the socket id ${socket_id}`);
 
   if (Boolean(user_id)) {
-    await User.findByIdAndUpdate(user_id, { socket_id });
+    await User.findByIdAndUpdate(user_id, { socket_id, status: "Online" });
   }
 
   // we can write our socket event listener here
@@ -113,8 +114,51 @@ process.on("unhandledRejection", (error) => {
   server.close(() => {
     process.exit(1);
   });
+  // handle text/link messages
+  socket.on("text", (data) => {
+    console.log("Received Messages", data);
 
-  socket.on("end", function () {
+    // data : {to, from, text}
+
+    // create a new conversation if it doesn't exist yet or add new message in the existing one(message list)
+
+    // save to db
+
+    // emit incoming messages ====>>> to user
+
+    // emit outgoing messages ====>>> from user
+  });
+
+  socket.on("file_message", (data) => {
+    console.log("Received Messages", data);
+
+    // data : {to, from, text, files}
+
+    //get the file extension
+    const fileExtension = path.extname(data.file.name);
+
+    // generate unique fileName
+    const fileName = `${Date.now()}_${Math.floor(
+      Math.random() * 1000
+    )}_${fileExtension}`;
+
+    // upload file to aws S3
+
+    // create a new conversation if it doesn't exist yet or add new message in the existing one(message list)
+
+    // save to db
+
+    // emit incoming messages ====>>> to user
+
+    // emit outgoing messages ====>>> from user
+  });
+
+  socket.on("end", async (data) => {
+    // find userbyid and set user status offline
+    if (data.user_id) {
+      await User.findByIdAndUpdate(data.user_id, { status: "Offline" });
+    }
+    // Todo : Broadcast user disconnected
     console.log("Closing connection");
     socket.disconnect(0);
   });
