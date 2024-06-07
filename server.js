@@ -12,6 +12,7 @@ process.on("uncaughtException", (error) => {
 import http from "http";
 import User from "./models/user.model.js";
 import FriendRequest from "./models/friendRequest.js";
+import OneToOneMessage from "./models/oneToOneMessage.js";
 
 const port = process.env.PORT || 7000;
 const server = http.createServer(app);
@@ -107,13 +108,44 @@ io.on("connection", async (socket) => {
       message: "Friend Request  Accepted",
     });
   });
-});
 
-process.on("unhandledRejection", (error) => {
-  console.log(error);
-  server.close(() => {
-    process.exit(1);
+  socket.on("get_direct_conversation", async ({ user_id }, callback) => {
+    const existing_conversation = await OneToOneMessage.find({
+      participants: { $all: [user_id] },
+    }).populate("participants", "firstName lastName _id email status");
+
+    console.log(existing_conversation);
+
+    callback(existing_conversation);
   });
+  socket.on("start_conversation", async (data) => {
+    // data : {to, from}
+    const { to, from } = data;
+    // checking if there is any existing conversation between these two users
+    const existing_conversation = await OneToOneMessage.find({
+      participants : {$size:2, $all:[to, from]},
+    }).populate("participants","firstName lastName _id email status");
+    console.log("existing conversation",existing_conversation[0])
+    
+    //  if no existing_conversation
+    if(existing_conversation.length === 0){
+      let new_chat = await OneToOneMessage.create({
+        participants:[to,from],
+      });
+      new_chat = await OneToOneMessage.findById(new_chat._id).populate("participants","firstName lastName _id email status")
+      console.log('new_chat>>>',new_chat)
+      socket.emit("start_chat",new_chat)
+    }
+
+
+    //  if there is existing_conversation
+    else{
+      socket.emit("open_chat", existing_conversation[0])
+    }
+
+
+  });
+  
   // handle text/link messages
   socket.on("text", (data) => {
     console.log("Received Messages", data);
@@ -153,6 +185,8 @@ process.on("unhandledRejection", (error) => {
     // emit outgoing messages ====>>> from user
   });
 
+  // -------------- HANDLE SOCKET DISCONNECTION ----------------- //
+
   socket.on("end", async (data) => {
     // find userbyid and set user status offline
     if (data.user_id) {
@@ -161,5 +195,12 @@ process.on("unhandledRejection", (error) => {
     // Todo : Broadcast user disconnected
     console.log("Closing connection");
     socket.disconnect(0);
+  });
+});
+
+process.on("unhandledRejection", (error) => {
+  console.log(error);
+  server.close(() => {
+    process.exit(1);
   });
 });
